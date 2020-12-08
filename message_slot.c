@@ -121,6 +121,7 @@ void insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
         printk("creating node at end\n");
         newNode=createNode(channelId, msg, msgLength);
         prevNode->next = newNode;
+        lst->size++;
     }
 
 }
