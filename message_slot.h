@@ -16,7 +16,7 @@
 // Set the message of the device driver
 #define IOCTL_MSG_SLOT_CHNL _IOW(MAJOR_NUM, 0, unsigned long)
 
-#define DEVICE_RANGE_NAME "message_slot_1"
+#define DEVICE_RANGE_NAME "message_slot"
 #define BUF_LEN 128
 #define SUCCESS 0
 

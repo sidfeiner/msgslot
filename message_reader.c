@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <limits.h>
 #include <fcntl.h>      /* open */
 #include <unistd.h>     /* exit */
 #include <sys/ioctl.h>  /* ioctl */
@@ -22,7 +23,7 @@ int main(int c, char **args) {
 
     deviceFile = args[1];
     channelId = strtol(args[2], NULL, 10);
-    if (channelId == UINTMAX_MAX && errno == ERANGE) {
+    if (channelId == UINT_MAX && errno == ERANGE) {
         printf("wrong channelId given: %s\n", strerror(2));
         exit(1);
     }

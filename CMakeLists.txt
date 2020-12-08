@@ -3,4 +3,5 @@ project(msgslot C)
 
 set(CMAKE_C_STANDARD 11)
 include_directories(/usr/src/linux-headers-5.0.0-23/include)
-add_executable(msgslot main.c)
+add_executable(reader message_reader.c)
+add_executable(sender message_sender.c)
