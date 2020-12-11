@@ -11,6 +11,15 @@
 #include <sys/ioctl.h>  /* ioctl */
 #include "message_slot.h"
 
+void clean(int fd) {
+    close(fd);
+}
+
+void exitAndClean(int fd) {
+    clean(fd);
+    exit(errno);
+}
+
 int main(int c, char **args) {
     char *deviceFile, *msg;
     long channelId;
@@ -32,14 +41,18 @@ int main(int c, char **args) {
     fd = open(deviceFile, O_RDWR);
     if (fd < 0) {
         perror("could not open file");
-        exit(1);
+        clean(fd);
     }
 
-    retVal = ioctl( fd, IOCTL_MSG_SLOT_CHNL, (int)channelId);
-    retVal = write( fd, msg, strlen(msg)+1);
-    if (retVal != strlen(msg) +1) {
+    retVal = ioctl( fd, IOCTL_MSG_SLOT_CHNL, (unsigned long)channelId);
+    if (retVal < 0) {
+        perror("ioctl failed\n");
+        exitAndClean(fd);
+    }
+    retVal = write( fd, msg, strlen(msg));
+    if (retVal != strlen(msg)) {
         perror("write did not return correct amount of bytes\n");
+        exitAndClean(fd);
     }
-
-
+    close(fd);
 }
