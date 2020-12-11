@@ -43,7 +43,10 @@ int main(int c, char **args) {
         exit(1);
     }
 
-    msg = calloc(BUF_LEN, sizeof(char));
+    if ((msg = calloc(BUF_LEN, sizeof(char))) == NULL) {
+        errno = -1;
+        exit(1);
+    }
 
     retVal = ioctl(fd, IOCTL_MSG_SLOT_CHNL, (unsigned long) channelId);
     if (retVal < 0) {

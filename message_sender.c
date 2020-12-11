@@ -44,14 +44,14 @@ int main(int c, char **args) {
         clean(fd);
     }
 
-    retVal = ioctl( fd, IOCTL_MSG_SLOT_CHNL, (unsigned long)channelId);
+    retVal = ioctl(fd, IOCTL_MSG_SLOT_CHNL, (unsigned long) channelId);
     if (retVal < 0) {
-        perror("ioctl failed\n");
+        perror("ioctl failed");
         exitAndClean(fd);
     }
-    retVal = write( fd, msg, strlen(msg));
+    retVal = write(fd, msg, strlen(msg));
     if (retVal != strlen(msg)) {
-        perror("write did not return correct amount of bytes\n");
+        perror("write did not return correct amount of bytes");
         exitAndClean(fd);
     }
     close(fd);

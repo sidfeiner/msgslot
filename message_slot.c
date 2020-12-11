@@ -29,6 +29,7 @@ MODULE_LICENSE("GPL");
 static int major;
 static int minor;
 
+
 typedef struct _ListNode {
     int channelId;
     char *msg;
@@ -41,61 +42,59 @@ typedef struct _LinkedList {
     int size;
 } LinkedList;
 
+static LinkedList *devices[MAX_DEVICES] = {NULL};
+
 ListNode *findChannelId(LinkedList *lst, int channelId) {
     ListNode *node = lst->first;
     while (node != NULL) {
         if (node->channelId == channelId) {
-            printk("found channelId at node %p\n", node);
             return node;
         }
         node = node->next;
     }
-    printk("channelId not found\n");
     return NULL;
 }
 
 void setMsg(ListNode *node, const char *msg, int msgLength) {
     int i;
-    printk("writing message to node at %p", node);
     for (i = 0; i < msgLength; ++i) {
         get_user(node->msg[i], &msg[i]);
-        printk("successfully set %c\n", node->msg[i]);
     }
     node->msgLength = msgLength;
 }
 
-ListNode* createNode(int channelId, const char *msg, int msgLength) {
+ListNode *createNode(int channelId, const char *msg, int msgLength) {
     ListNode *node;
     node = kmalloc(sizeof(ListNode), GFP_KERNEL);
-    node->channelId = channelId;
+    if (node == NULL) return NULL;
     node->msg = kmalloc(sizeof(char) * MSG_MAX_LENGTH, GFP_KERNEL);
+    if (node->msg == NULL) return NULL;
     setMsg(node, msg, msgLength);
-    node->next=NULL;
+    node->channelId = channelId;
+    node->next = NULL;
     return node;
 }
 
-void insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
+int insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
     ListNode *newNode, *prevNode;
     ListNode *node;
-    printk("inserting message into lst: %p with first: first: %p\n", lst, lst->first);
     if (lst->size == 0) {
-        printk("creating node at beginning (first)\n");
         newNode = createNode(channelId, msg, msgLength);
+        if (newNode == NULL) return -1;
         lst->first = newNode;
         lst->size++;
     } else {
-        printk("searching nodes...\n");
         prevNode = NULL;
         node = lst->first;
         do {
             if (channelId == node->channelId) {
                 setMsg(node, msg, msgLength);
-                return;
+                return 0;
             } else if (channelId < node->channelId) {
-                printk("creating node in middle\n");
-                newNode=createNode(channelId, msg, msgLength);
+                newNode = createNode(channelId, msg, msgLength);
+                if (newNode == NULL) return -1;
                 if (prevNode == NULL) {
-                    newNode->next=node;
+                    newNode->next = node;
                     lst->first = newNode;
                 } else {
                     newNode->next = node;
@@ -108,24 +107,20 @@ void insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
             node = node->next;
         } while (node != NULL);
 
-        printk("creating node at end\n");
-        newNode=createNode(channelId, msg, msgLength);
+        newNode = createNode(channelId, msg, msgLength);
+        if (newNode == NULL) return -1;
         prevNode->next = newNode;
         lst->size++;
+        return 0;
     }
-
 }
 
-static LinkedList *devices[MAX_DEVICES] = {NULL};
-
 void free_node(ListNode *node) {
-    printk("freeing node with channelId: %d\n", node->channelId);
     kfree(node->msg);
 }
 
 void freeLst(LinkedList *lst) {
     ListNode *prev, *cur;
-    printk("freeing list of size %d\n", lst->size);
     prev = lst->first;
     cur = prev->next;
     while (cur != NULL) {
@@ -148,6 +143,7 @@ static int device_open(struct inode *inode,
     if (devices[minor+1] == NULL) {
         printk("adding minor %d to array at %p\n", minor,devices + minor + 1);
         devices[minor+1] = kmalloc(sizeof(LinkedList), GFP_KERNEL);
+        if (devices[minor+1] == NULL) return -1;
         devices[minor+1]->size = 0;
         printk("kmalloc returned pointer to %p\n", devices[minor+1]);
     } else {
@@ -236,7 +232,9 @@ static ssize_t device_write(struct file *file,
     if (buffer == NULL) {
         return -ENOSPC;
     }
-    insertMsg(devices[minor+1], channelId, buffer, length);
+    if (insertMsg(devices[minor+1], channelId, buffer, length)< 0) {
+        return -1;
+    }
     return length;
 }
 
