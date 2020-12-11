@@ -8,7 +8,6 @@
 // and MODULE allows us to access kernel-level
 // code not usually available to userspace programs.
 #undef __KERNEL__ioc
-#define __KERNEL__
 #undef MODULE
 #define MODULE
 
@@ -25,15 +24,6 @@ MODULE_LICENSE("GPL");
 #define SUCCESS 0
 #define MSG_MAX_LENGTH 128
 #define MAX_DEVICES ((1u<<20u)+1)
-
-struct chardev_info {
-    spinlock_t lock;
-};
-
-// used to prevent concurent access into the same device
-static int dev_open_flag = 0;
-
-static struct chardev_info device_info;
 
 // device major number
 static int major;
@@ -152,17 +142,8 @@ void freeLst(LinkedList *lst) {
 //================== DEVICE FUNCTIONS ===========================
 static int device_open(struct inode *inode,
                        struct file *file) {
-    unsigned long flags; // for spinlock
     printk("Invoking device_open(%p)\n", file);
 
-    // We don't want to talk to two processes at the same time
-    spin_lock_irqsave(&device_info.lock, flags);
-    if (1 == dev_open_flag) {
-        spin_unlock_irqrestore(&device_info.lock, flags);
-        return -EBUSY;
-    }
-
-    ++dev_open_flag;
     minor = iminor(inode);
     if (devices[minor+1] == NULL) {
         printk("adding minor %d to array at %p\n", minor,devices + minor + 1);
@@ -173,21 +154,14 @@ static int device_open(struct inode *inode,
         printk("minor already registered\n");
     }
 
-    spin_unlock_irqrestore(&device_info.lock, flags);
     return SUCCESS;
 }
 
 //---------------------------------------------------------------
 static int device_release(struct inode *inode,
                           struct file *file) {
-    unsigned long flags; // for spinlock
     printk("Invoking device_release(%p,%p)\n", inode, file);
-
-    // ready for our next caller
-    spin_lock_irqsave(&device_info.lock, flags);
-    --dev_open_flag;
     minor = -1;
-    spin_unlock_irqrestore(&device_info.lock, flags);
     return SUCCESS;
 }
 
@@ -198,23 +172,30 @@ static ssize_t device_read(struct file *file,
                            char __user *buffer,
                            size_t length,
                            loff_t *offset) {
-    int channelId, i;
+    int i;
+    unsigned long channelId;
     LinkedList *lst;
     ListNode *node;
     char *msgPtr, *bufferPtr;
     printk("Invoking device_read(%p,%ld)\n", file, length);
-    channelId = (int)(long) file->private_data;
-    printk("reading device and channelId: %d from device pointer: %p\n", channelId, devices[minor+1]);
+    if (file->private_data == NULL) {
+        return -EINVAL;
+    }
+    channelId = (unsigned long) file->private_data;
+    printk("reading device and channelId: %lu from device pointer: %p\n", channelId, devices[minor+1]);
     lst = devices[minor+1];
     node = findChannelId(lst, channelId);
     if (node != NULL) {
+        if (length < node->msgLength || buffer == NULL) {
+            return -ENOSPC;
+        }
         for (i = 0, msgPtr = node->msg, bufferPtr = buffer; i < node->msgLength; ++i, msgPtr++, bufferPtr++) {
             put_user(*msgPtr, bufferPtr);
             printk("successfully read %c\n", *msgPtr);
         }
         return node->msgLength;
     }
-    return -EINVAL;
+    return -EWOULDBLOCK;
 }
 
 //----------------------------------------------------------------
@@ -223,8 +204,8 @@ static long device_ioctl(struct file *file,
                          unsigned long ioctl_param) {
     // Switch according to the ioctl called
     if (IOCTL_MSG_SLOT_CHNL == ioctl_command_id && ioctl_param != 0) {
-        file->private_data = (void *)(long) ioctl_param;
-        // Get the parameter given to ioctl by the process
+        file->private_data = (void *) ioctl_param;
+        // Get the parameter given to- ioctl by the process
         printk("Invoking ioctl: setting channelId "
                "flag to %ld\n", ioctl_param);
         return SUCCESS;
@@ -242,10 +223,19 @@ static ssize_t device_write(struct file *file,
                             size_t length,
                             loff_t *offset) {
 
-    int channelId;
+    unsigned long channelId;
     printk("Invoking device_write(%p,%ld)\n", file, length);
-    channelId = (int)(long) file->private_data;
-    printk("device write to device and channelId: %d\n", channelId);
+    if (length > BUF_LEN || length <= 0) {
+        return -EMSGSIZE;
+    }
+    if (file->private_data == NULL) {
+        return -EINVAL;
+    }
+    channelId = (unsigned long) file->private_data;
+    printk("device write to device and channelId: %lu\n", channelId);
+    if (buffer == NULL) {
+        return -ENOSPC;
+    }
     insertMsg(devices[minor+1], channelId, buffer, length);
     return length;
 }
@@ -267,17 +257,13 @@ struct file_operations Fops =
 //---------------------------------------------------------------
 // Initialize the module - Register the character device
 static int __init simple_init(void) {
-    // init dev struct
-    memset(&device_info, 0, sizeof(struct chardev_info));
-    spin_lock_init(&device_info.lock);
-
     // Register driver capabilities. Obtain major num
     printk("registering with major %d and name %s\n", MAJOR_NUM, DEVICE_RANGE_NAME);
     major = register_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME, &Fops);
     printk("returned with major %d\n", major);
     // Negative values signify an error
     if (major < 0) {
-        printk(KERN_ALERT "%s registraion failed for  %d\n",
+        printk(KERN_ERR "%s registraion failed for  %d\n",
                DEVICE_RANGE_NAME, major);
         return major;
     }
