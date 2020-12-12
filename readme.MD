@@ -31,9 +31,9 @@ Try playing around with sending data to different channels, overriding data from
 
 ### Testers (from the Google Drive) 
 #### C Tester (tester.c)
-First, be sure the tester uses the correct IOCTL macro you defined in message_slot.h
+First, be sure the tester code uses the correct IOCTL macro you defined in message_slot.h
 
-Then, compile the tester, create a device file and run the tester: 
+Then, compile the tester, create a NEW device file and run the tester. If `/dev/msgslot1` already exists, first remove it using `sudo rm /dev/msgslot1`: 
 
 ```
 gcc -O3 -Wall -std=c11 tester.c message_slot.h -o tester
