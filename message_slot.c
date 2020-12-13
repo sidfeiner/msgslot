@@ -25,8 +25,6 @@ MODULE_LICENSE("GPL");
 #define MSG_MAX_LENGTH 128
 #define MAX_DEVICES ((1u<<20u)+1)
 
-// device major number
-static int major;
 static int minor;
 
 
@@ -261,17 +259,18 @@ struct file_operations Fops =
 // Initialize the module - Register the character device
 static int __init simple_init(void) {
     // Register driver capabilities. Obtain major num
+    int success;
     printk("registering with major %d and name %s\n", MAJOR_NUM, DEVICE_RANGE_NAME);
-    major = register_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME, &Fops);
-    printk("returned with major %d\n", major);
+    success = register_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME, &Fops);
+    printk("returned with major %d\n", MAJOR_NUM);
     // Negative values signify an error
-    if (major < 0) {
-        printk(KERN_ERR "%s registraion failed for  %d\n",
-               DEVICE_RANGE_NAME, major);
-        return major;
+    if (success != 0) {
+        printk(KERN_ERR "%s registraion failed for  %d. received status %d\n",
+               DEVICE_RANGE_NAME, MAJOR_NUM, success);
+        return MAJOR_NUM;
     }
     printk("Registeration is successful. YAY "
-           "The major device number is %d.\n", major);
+           "The major device number is %d.\n", MAJOR_NUM);
     return 0;
 }
 
@@ -289,8 +288,8 @@ static void __exit simple_cleanup(void) {
             freeLst(*tmp);
         }
     }
-    printk("done freeing, unregistering major %d.\n", major);
-    unregister_chrdev(major, DEVICE_RANGE_NAME);
+    printk("done freeing, unregistering major %d.\n", MAJOR_NUM);
+    unregister_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME);
 }
 
 //---------------------------------------------------------------
