@@ -16,8 +16,8 @@ sudo chmod o+rw /dev/msgslot1
 ### Send / Receive messages
 First, compile the send/receive scripts:
 ```
-gcc -O3  -Wall -std=c11 message_sender.c message_slot.h -o message_sender
-gcc -O3  -Wall -std=c11 message_reader.c message_slot.h -o message_reader
+gcc -O3  -Wall -std=c11 message_sender.c -o message_sender
+gcc -O3  -Wall -std=c11 message_reader.c -o message_reader
 ```
 
 Then, try sending and receiving some messages, for example:
@@ -36,10 +36,28 @@ First, be sure the tester code uses the correct IOCTL macro you defined in messa
 Then, compile the tester, create a NEW device file and run the tester. If `/dev/msgslot1` already exists, first remove it using `sudo rm /dev/msgslot1`: 
 
 ```
-gcc -O3 -Wall -std=c11 tester.c message_slot.h -o tester
+gcc -O3 -Wall -std=c11 tester.c -o tester
 sudo mknod /dev/msgslot1 c 240 1
 sudo chmod o+rw /dev/msgslot1
 ./tester /dev/msgslot1
+```
+
+#### C Tester 2 (tester2.c)
+First, be sure the tester code uses the correct IOCTL macro you defined in message_slot.h
+
+Then, you must ensure that you have a CLEAN driver and device, so if your driver is already loaded and you already have a device, run:
+```
+sudo rmmod message_slot
+sudo rm /dev/msgslot1
+```
+compile the tester, create a NEW device file and run the tester. If `/dev/msgslot1` already exists, first remove it using `sudo rm /dev/msgslot1`: 
+
+```
+gcc -O3 -Wall -std=c11 tester2.c -o tester
+sudo insmod message_slot.ko
+sudo mknod /dev/msgslot1 c 240 1
+sudo chmod o+rw /dev/msgslot1
+./tester2 /dev/msgslot1
 ```
 
 #### Python Tester (tester.py)

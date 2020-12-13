@@ -75,6 +75,10 @@ ListNode *createNode(int channelId, const char *msg, int msgLength) {
     return node;
 }
 
+/**
+ * Inserts msg into channelId
+ * return 0 if successfull, -1 if some error occurred
+ */
 int insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
     ListNode *newNode, *prevNode;
     ListNode *node;
@@ -83,6 +87,7 @@ int insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
         if (newNode == NULL) return -1;
         lst->first = newNode;
         lst->size++;
+        return 0;
     } else {
         prevNode = NULL;
         node = lst->first;
@@ -101,7 +106,7 @@ int insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
                     prevNode->next = newNode;
                 }
                 lst->size++;
-                return;
+                return 0;
             }
             prevNode = node;
             node = node->next;
@@ -265,7 +270,6 @@ static int __init simple_init(void) {
                DEVICE_RANGE_NAME, major);
         return major;
     }
-    printk("first device address: %p,  %p, %p, %p\n", devices, devices[0], devices[1], devices[2]);
     printk("Registeration is successful. YAY "
            "The major device number is %d.\n", major);
     return 0;
@@ -278,7 +282,6 @@ static void __exit simple_cleanup(void) {
     LinkedList **tmp, **limit;
     int i;
     limit = devices + MAX_DEVICES;
-    unregister_chrdev(major, DEVICE_RANGE_NAME);
     printk("freeing devices starting from %p up to %p\n", devices, limit);
     for (i=0,tmp=devices;tmp< limit;tmp++, i++) {
         if (*tmp != NULL) {
@@ -286,7 +289,8 @@ static void __exit simple_cleanup(void) {
             freeLst(*tmp);
         }
     }
-    printk("done freeing.\n");
+    printk("done freeing, unregistering major %d.\n", major);
+    unregister_chrdev(major, DEVICE_RANGE_NAME);
 }
 
 //---------------------------------------------------------------

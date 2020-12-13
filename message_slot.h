@@ -11,7 +11,7 @@
 // We don't rely on dynamic registration
 // any more. We want ioctls to know this
 // number at compile time.
-#define MAJOR_NUM 0u
+#define MAJOR_NUM 240
 
 // Set the message of the device driver
 #define IOCTL_MSG_SLOT_CHNL _IOW(MAJOR_NUM, 0, unsigned long)
