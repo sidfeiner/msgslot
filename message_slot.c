@@ -7,7 +7,8 @@
 // from the header files. Defining __KERNEL__
 // and MODULE allows us to access kernel-level
 // code not usually available to userspace programs.
-#undef __KERNEL__ioc
+#undef __KERNEL__
+#define __KERNEL__
 #undef MODULE
 #define MODULE
 
@@ -200,11 +201,9 @@ static long device_ioctl(struct file *file,
     if (IOCTL_MSG_SLOT_CHNL == ioctl_command_id && ioctl_param != 0) {
         file->private_data = (void *) ioctl_param;
         // Get the parameter given to- ioctl by the process
-        printk("Invoking ioctl: setting channelId "
-               "flag to %ld\n", ioctl_param);
+        printk("Invoking ioctl: setting channelId flag to %ld\n", ioctl_param);
         return SUCCESS;
     } else {
-        printk("unknown ioctl_command given: %ld\n", ioctl_param);
         return -EINVAL;
     }
 }
@@ -229,7 +228,6 @@ static ssize_t device_write(struct file *file,
         return -EINVAL;
     }
     channelId = (unsigned long) file->private_data;
-    printk("device write to device and channelId: %lu\n", channelId);
     if (buffer == NULL) {
         return -ENOSPC;
     }
@@ -248,7 +246,6 @@ static ssize_t device_write(struct file *file,
         return -ENOSPC;
     }
     if ((status = copy_from_user(tmpBuffer, buffer, length))!=0) {
-        printk("copied %d instead of %ld", status, length);
         return -ENOSPC;
     }
     setMsg(node, tmpBuffer, length);
@@ -276,15 +273,12 @@ static int __init simple_init(void) {
     int success;
     printk("registering with major %d and name %s\n", MAJOR_NUM, DEVICE_RANGE_NAME);
     success = register_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME, &Fops);
-    printk("returned with major %d\n", MAJOR_NUM);
-    // Negative values signify an error
-    if (success != 0) {
+    if (success < 0) {
         printk(KERN_ERR "%s registraion failed for  %d. received status %d\n",
                DEVICE_RANGE_NAME, MAJOR_NUM, success);
         return MAJOR_NUM;
     }
-    printk("Registeration is successful. YAY "
-           "The major device number is %d.\n", MAJOR_NUM);
+    printk("Registeration is successful. YAY");
     return 0;
 }
 
@@ -307,7 +301,6 @@ static void __exit simple_cleanup(void) {
 
 //---------------------------------------------------------------
 module_init(simple_init);
-
 module_exit(simple_cleanup);
 
 //========================= END OF FILE =========================
