@@ -23,7 +23,7 @@ void exitAndClean(int fd) {
 int main(int c, char **args) {
     char *deviceFile, *msg;
     long channelId;
-    int fd, retVal;
+    int fd;
 
     if (c != 4) {
         perror("wrong amount of arguments given");
@@ -44,13 +44,11 @@ int main(int c, char **args) {
         clean(fd);
     }
 
-    retVal = ioctl(fd, IOCTL_MSG_SLOT_CHNL, (unsigned long) channelId);
-    if (retVal < 0) {
+    if (ioctl(fd, IOCTL_MSG_SLOT_CHNL, (unsigned long) channelId) < 0) {
         perror("ioctl failed");
         exitAndClean(fd);
     }
-    retVal = write(fd, msg, strlen(msg));
-    if (retVal != strlen(msg)) {
+    if (write(fd, msg, strlen(msg)) < 0) {
         perror("write did not return correct amount of bytes");
         exitAndClean(fd);
     }

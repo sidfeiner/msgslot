@@ -48,21 +48,17 @@ int main(int c, char **args) {
         exit(1);
     }
 
-    retVal = ioctl(fd, IOCTL_MSG_SLOT_CHNL, (unsigned long) channelId);
-    if (retVal < 0) {
+    if (ioctl(fd, IOCTL_MSG_SLOT_CHNL, (unsigned long) channelId) < 0) {
         perror("ioctl failed");
         exitAndClean(fd);
     }
-    retVal = read(fd, msg, BUF_LEN);
-    if (retVal < 0) {
+    if ((retVal = read(fd, msg, BUF_LEN)) < 0) {
         perror("read failed");
         exitAndClean(fd);
     }
-
     clean(fd);
-    char *limit = msg + retVal;
-    for (char *tmp = msg; tmp < limit; tmp++) {
-        printf("%c", *tmp);
+    if ((write(STDOUT_FILENO, msg, retVal) != retVal)) {
+        perror("failed writing to STDOUT");
     }
     free(msg);
 }
