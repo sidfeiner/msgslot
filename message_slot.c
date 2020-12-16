@@ -23,10 +23,7 @@ MODULE_LICENSE("GPL");
 
 #define SUCCESS 0
 #define MSG_MAX_LENGTH 128
-#define MAX_DEVICES ((1u<<20u)+1)
-
-static int minor;
-
+#define MAX_DEVICES ((1u<<8u)+1)
 
 typedef struct _ListNode {
     int channelId;
@@ -142,6 +139,7 @@ void freeLst(LinkedList *lst) {
 //================== DEVICE FUNCTIONS ===========================
 static int device_open(struct inode *inode,
                        struct file *file) {
+    int minor;
     printk("Invoking device_open(%p)\n", file);
 
     minor = iminor(inode);
@@ -155,21 +153,13 @@ static int device_open(struct inode *inode,
 }
 
 //---------------------------------------------------------------
-static int device_release(struct inode *inode,
-                          struct file *file) {
-    printk("Invoking device_release(%p,%p)\n", inode, file);
-    minor = -1;
-    return SUCCESS;
-}
-
-//---------------------------------------------------------------
 // a process which has already opened
 // the device file attempts to read from it
 static ssize_t device_read(struct file *file,
                            char __user *buffer,
                            size_t length,
                            loff_t *offset) {
-    int status;
+    int status, minor;
     unsigned long channelId;
     LinkedList *lst;
     ListNode *node;
@@ -179,7 +169,11 @@ static ssize_t device_read(struct file *file,
         return -EINVAL;
     }
     channelId = (unsigned long) file->private_data;
+    minor = iminor(file->f_inode);
     lst = devices[minor + 1];
+    if (devices[minor+1] == NULL) {  // Device didn't pass through open
+        return -EINVAL;
+    }
     node = findChannelId(lst, channelId);
     if (node != NULL) {
         if (length < node->msgLength || buffer == NULL) {  // Ensure we have space to write to
@@ -224,7 +218,7 @@ static ssize_t device_write(struct file *file,
                             loff_t *offset) {
 
     unsigned long channelId;
-    int status;
+    int status, minor;
     char *tmpBuffer;
     ListNode *node;
     printk("Invoking device_write(%p,%ld)\n", file, length);
@@ -238,6 +232,11 @@ static ssize_t device_write(struct file *file,
     printk("device write to device and channelId: %lu\n", channelId);
     if (buffer == NULL) {
         return -ENOSPC;
+    }
+
+    minor = iminor(file->f_inode);
+    if (devices[minor+1] == NULL) {  // Device didn't pass through open
+        return -EINVAL;
     }
 
     // Get or create relevant node to store data in
@@ -267,7 +266,6 @@ struct file_operations Fops =
                 .read           = device_read,
                 .write          = device_write,
                 .open           = device_open,
-                .release        = device_release,
                 .unlocked_ioctl          = device_ioctl,
         };
 
@@ -291,7 +289,7 @@ static int __init simple_init(void) {
 }
 
 //---------------------------------------------------------------
-static void __exitsimple_cleanup(void) {
+static void __exit simple_cleanup(void) {
     // Unregister the device
     // Should always succeed
     LinkedList **tmp, **limit;
