@@ -54,7 +54,7 @@ def create_slot_file(template, minor_num):
         print("THIS IS WRONG! Contact the developer of this file and tell him he made a mistake.")
         delete_all_files()
         exit(-1)
-    execute(f"test ! -f {filename} && sudo mknod {filename} c 239 {minor_num} || echo '' > /dev/null")
+    execute(f"test ! -f {filename} && sudo mknod {filename} c 240 {minor_num} || echo '' > /dev/null")
     execute(f"sudo chmod o+rw {filename}")
     FILE_NAMES[filename] = {}
     return filename
@@ -198,7 +198,6 @@ def test_empty_write_fails():
 
     for filename in FILE_NAMES:
         result = write_to_file(filename, 1, "", exit_on_non_zero=False)
-        print(f"STDERR: {result.stderr}")
         assert_contains(result.stderr, "Message too long", {'filename': filename})
 
 
@@ -243,4 +242,4 @@ if __name__ == '__main__':
 
     test_random_operations(amount=1000)
 
-    delete_all_files()
+    #delete_all_files()

@@ -54,20 +54,23 @@ ListNode *findChannelId(LinkedList *lst, int channelId) {
 }
 
 void setMsg(ListNode *node, const char *msg, int msgLength) {
-    int i;
-    for (i = 0; i < msgLength; ++i) {
-        get_user(node->msg[i], &msg[i]);
-    }
+    memcpy(node->msg, msg, msgLength);
     node->msgLength = msgLength;
 }
 
-ListNode *createNode(int channelId, const char *msg, int msgLength) {
+/**
+ * Creates node. If it failed allocating memory for the message, it frees the node it created
+ * REMARK: If this function return NULL, DO NOT ADD IT TO THE LINKED LIST
+ */
+ListNode *createNode(int channelId) {
     ListNode *node;
     node = kmalloc(sizeof(ListNode), GFP_KERNEL);
     if (node == NULL) return NULL;
-    node->msg = kmalloc(sizeof(char) * MSG_MAX_LENGTH, GFP_KERNEL);
-    if (node->msg == NULL) return NULL;
-    setMsg(node, msg, msgLength);
+    node->msg = kmalloc(sizeof(char) * MSG_MAX_LENGTH, GFP_KERNEL);  // Allocate message memory
+    if (node->msg == NULL) {
+        kfree(node);
+        return NULL;
+    }
     node->channelId = channelId;
     node->next = NULL;
     return node;
@@ -75,27 +78,25 @@ ListNode *createNode(int channelId, const char *msg, int msgLength) {
 
 /**
  * Inserts msg into channelId
- * return 0 if successfull, -1 if some error occurred
+ * return NULL if there was a problem allocating memory, ListNode otherwise
  */
-int insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
-    ListNode *newNode, *prevNode;
-    ListNode *node;
+ListNode *getOrCreateNode(LinkedList *lst, int channelId) {
+    ListNode *newNode, *prevNode, *node;
     if (lst->size == 0) {
-        newNode = createNode(channelId, msg, msgLength);
-        if (newNode == NULL) return -1;
+        newNode = createNode(channelId);
+        if (newNode == NULL) return NULL;
         lst->first = newNode;
         lst->size++;
-        return 0;
+        return newNode;
     } else {
         prevNode = NULL;
         node = lst->first;
         do {
             if (channelId == node->channelId) {
-                setMsg(node, msg, msgLength);
-                return 0;
+                return node;
             } else if (channelId < node->channelId) {
-                newNode = createNode(channelId, msg, msgLength);
-                if (newNode == NULL) return -1;
+                newNode = createNode(channelId);
+                if (newNode == NULL) return NULL;
                 if (prevNode == NULL) {
                     newNode->next = node;
                     lst->first = newNode;
@@ -104,35 +105,36 @@ int insertMsg(LinkedList *lst, int channelId, const char *msg, int msgLength) {
                     prevNode->next = newNode;
                 }
                 lst->size++;
-                return 0;
+                return newNode;
             }
             prevNode = node;
             node = node->next;
         } while (node != NULL);
 
-        newNode = createNode(channelId, msg, msgLength);
-        if (newNode == NULL) return -1;
+        newNode = createNode(channelId);
+        if (newNode == NULL) return NULL;
         prevNode->next = newNode;
         lst->size++;
-        return 0;
+        return newNode;
     }
 }
 
-void free_node(ListNode *node) {
+void freeNode(ListNode *node) {
     kfree(node->msg);
+    kfree(node);
 }
 
 void freeLst(LinkedList *lst) {
     ListNode *prev, *cur;
-    prev = lst->first;
-    cur = prev->next;
-    while (cur != NULL) {
-        free_node(prev);
-        prev = cur;
-        cur = cur->next;
-    }
-    if (prev != NULL) {
-        free_node(prev);
+    if (lst->size!=0) {
+        prev = lst->first;
+        cur = prev->next;
+        while (cur != NULL) {
+            freeNode(prev);
+            prev = cur;
+            cur = cur->next;
+        }
+        freeNode(prev);
     }
     kfree(lst);
 }
@@ -143,16 +145,12 @@ static int device_open(struct inode *inode,
     printk("Invoking device_open(%p)\n", file);
 
     minor = iminor(inode);
-    if (devices[minor+1] == NULL) {
-        printk("adding minor %d to array at %p\n", minor,devices + minor + 1);
-        devices[minor+1] = kmalloc(sizeof(LinkedList), GFP_KERNEL);
-        if (devices[minor+1] == NULL) return -1;
-        devices[minor+1]->size = 0;
-        printk("kmalloc returned pointer to %p\n", devices[minor+1]);
-    } else {
-        printk("minor already registered\n");
+    if (devices[minor + 1] == NULL) {
+        printk("adding minor %d to array\n", minor);
+        devices[minor + 1] = kmalloc(sizeof(LinkedList), GFP_KERNEL);
+        if (devices[minor + 1] == NULL) return -1;
+        devices[minor + 1]->size = 0;
     }
-
     return SUCCESS;
 }
 
@@ -171,27 +169,30 @@ static ssize_t device_read(struct file *file,
                            char __user *buffer,
                            size_t length,
                            loff_t *offset) {
-    int i;
+    int status;
     unsigned long channelId;
     LinkedList *lst;
     ListNode *node;
-    char *msgPtr, *bufferPtr;
+    char *tmpBuffer;
     printk("Invoking device_read(%p,%ld)\n", file, length);
     if (file->private_data == NULL) {
         return -EINVAL;
     }
     channelId = (unsigned long) file->private_data;
-    printk("reading device and channelId: %lu from device pointer: %p\n", channelId, devices[minor+1]);
-    lst = devices[minor+1];
+    lst = devices[minor + 1];
     node = findChannelId(lst, channelId);
     if (node != NULL) {
-        if (length < node->msgLength || buffer == NULL) {
+        if (length < node->msgLength || buffer == NULL) {  // Ensure we have space to write to
             return -ENOSPC;
         }
-        for (i = 0, msgPtr = node->msg, bufferPtr = buffer; i < node->msgLength; ++i, msgPtr++, bufferPtr++) {
-            put_user(*msgPtr, bufferPtr);
-            printk("successfully read %c\n", *msgPtr);
+        if ((tmpBuffer = kmalloc(sizeof(char) * node->msgLength, GFP_KERNEL)) == NULL) {  // Init temp buffer to allow atomic transaction
+            return -ENOSPC;
         }
+        memcpy(tmpBuffer, node->msg, node->msgLength); // Copy to temp buffer
+        if ((status = copy_to_user(buffer, tmpBuffer, node->msgLength))!=0) { // Write to user buffer
+            return -ENOSPC;
+        }
+        kfree(tmpBuffer);
         return node->msgLength;
     }
     return -EWOULDBLOCK;
@@ -223,8 +224,11 @@ static ssize_t device_write(struct file *file,
                             loff_t *offset) {
 
     unsigned long channelId;
+    int status;
+    char *tmpBuffer;
+    ListNode *node;
     printk("Invoking device_write(%p,%ld)\n", file, length);
-    if (length > BUF_LEN || length <= 0) {
+    if (length > BUF_LEN || length <= 0) {  // Buffer has wrong size
         return -EMSGSIZE;
     }
     if (file->private_data == NULL) {
@@ -235,9 +239,21 @@ static ssize_t device_write(struct file *file,
     if (buffer == NULL) {
         return -ENOSPC;
     }
-    if (insertMsg(devices[minor+1], channelId, buffer, length)< 0) {
-        return -1;
+
+    // Get or create relevant node to store data in
+    if ((node = getOrCreateNode(devices[minor + 1], channelId)) == NULL) {
+        return -ENOSPC;
     }
+    node->msgLength = length;
+    if ((tmpBuffer = kmalloc(sizeof(char) * length, GFP_KERNEL)) == NULL) {
+        return -ENOSPC;
+    }
+    if ((status = copy_from_user(tmpBuffer, buffer, length))!=0) {
+        printk("copied %d instead of %ld", status, length);
+        return -ENOSPC;
+    }
+    setMsg(node, tmpBuffer, length);
+    kfree(tmpBuffer);
     return length;
 }
 
@@ -275,21 +291,20 @@ static int __init simple_init(void) {
 }
 
 //---------------------------------------------------------------
-static void __exit simple_cleanup(void) {
+static void __exitsimple_cleanup(void) {
     // Unregister the device
     // Should always succeed
     LinkedList **tmp, **limit;
-    int i;
     limit = devices + MAX_DEVICES;
-    printk("freeing devices starting from %p up to %p\n", devices, limit);
-    for (i=0,tmp=devices;tmp< limit;tmp++, i++) {
+    printk("freeing memory\n");
+    for (tmp = devices + 1; tmp < limit; tmp++) {
         if (*tmp != NULL) {
-            printk("deleting\n");
             freeLst(*tmp);
         }
     }
-    printk("done freeing, unregistering major %d.\n", MAJOR_NUM);
+    printk("done freeing memory\n");
     unregister_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME);
+    printk("successfully unregistered\n");
 }
 
 //---------------------------------------------------------------
