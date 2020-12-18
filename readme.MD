@@ -33,7 +33,14 @@ Try playing around with sending data to different channels, overriding data from
 #### C Tester (tester.c)
 First, be sure the tester code uses the correct IOCTL macro you defined in message_slot.h
 
-Then, compile the tester, create a NEW device file and run the tester. If `/dev/msgslot1` already exists, first remove it using `sudo rm /dev/msgslot1`: 
+Then, compile the tester.
+ 
+And then, ensure you have a CLEAN driver with the following by removing it if it's already loaded:
+```
+sudo rmmod message_slot
+sudo rm /dev/msgslot1
+```
+Create a NEW device file and run the tester. If `/dev/msgslot1` already exists, first remove it using `sudo rm /dev/msgslot1`: 
 
 ```
 gcc -O3 -Wall -std=c11 tester.c -o tester
@@ -71,8 +78,8 @@ pip3 install colorama
 
 And then, cd into the project’s directory, compile the reader and sender with the following:
 ```
-gcc -O3 -Wall -std=c11 message_sender.c message_slot.h -o message_ sender.o
-gcc -O3 -Wall -std=c11 message_ reader.c message_slot.h -o message_reader.o
+gcc -O3 -Wall -std=c11 message_sender.c message_slot.h -o message_sender.o
+gcc -O3 -Wall -std=c11 message_reader.c message_slot.h -o message_reader.o
 ```
 
 One they’re compiled, run the tester (make sure the tester.py file is in the directory):
