@@ -82,7 +82,12 @@ gcc -O3 -Wall -std=c11 message_sender.c message_slot.h -o message_sender.o
 gcc -O3 -Wall -std=c11 message_reader.c message_slot.h -o message_reader.o
 ```
 
-One they’re compiled, run the tester (make sure the tester.py file is in the directory):
+Then, insure your driver is loaded using the following:
+```
+sudo insmod message_slot.ko
+```
+
+One the reader and sinder are compiled, and the driver is loaded, run the tester (make sure the tester.py file is in the directory):
 `python3 ./tester.py`
 
 This tester might ensure more than what was required. It checks the receiver and sender output and expects to
