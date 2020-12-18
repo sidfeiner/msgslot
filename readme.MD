@@ -71,8 +71,8 @@ pip3 install colorama
 
 And then, cd into the project’s directory, compile the reader and sender with the following:
 ```
-gcc -O3 -Wall -std=c11 message_sender.c message_slot.h -o message_ sender.o
-gcc -O3 -Wall -std=c11 message_ reader.c message_slot.h -o message_reader.o
+gcc -O3 -Wall -std=c11 message_sender.c message_slot.h -o message_sender.o
+gcc -O3 -Wall -std=c11 message_reader.c message_slot.h -o message_reader.o
 ```
 
 One they’re compiled, run the tester (make sure the tester.py file is in the directory):
