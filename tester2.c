@@ -46,7 +46,7 @@ int perform_random_write(int fd) {
     bffr=(char*)malloc(length);
     get_rand_string(bffr,(size_t)length);
     channel = get_random_channel();
-    rc = ioctl(fd, IOCTL_MSG_SLOT_CHNL, channel);
+    rc = ioctl(fd, MSG_SLOT_CHANNEL, channel);
     if (rc == -1) {
         if(channel>0) {
             fprintf(stderr, "perform_random_write: ioctl failed with error: %d\n", errno);
@@ -100,7 +100,7 @@ int perform_random_read(int fd){
     char bffr[BUFF_SIZE];
     passed=1;
     channel = get_random_channel();
-    rc = ioctl(fd, IOCTL_MSG_SLOT_CHNL, channel);
+    rc = ioctl(fd, MSG_SLOT_CHANNEL, channel);
     if (rc == -1) {
         if(channel>0) {
             fprintf(stderr, "perform_random_read: ioctl failed with error: %d\n", errno);

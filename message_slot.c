@@ -198,7 +198,7 @@ static long device_ioctl(struct file *file,
                          unsigned int ioctl_command_id,
                          unsigned long ioctl_param) {
     // Switch according to the ioctl called
-    if (IOCTL_MSG_SLOT_CHNL == ioctl_command_id && ioctl_param != 0) {
+    if (MSG_SLOT_CHANNEL == ioctl_command_id && ioctl_param != 0) {
         file->private_data = (void *) ioctl_param;
         // Get the parameter given to- ioctl by the process
         printk("Invoking ioctl: setting channelId flag to %ld\n", ioctl_param);

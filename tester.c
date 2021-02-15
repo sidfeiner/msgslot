@@ -21,7 +21,7 @@ void read_no_message(int fd) {
 	fflush(stdout);
 	int passed=1;
 	char bffr[10];
-	int rc = ioctl(fd, IOCTL_MSG_SLOT_CHNL, 20);
+	int rc = ioctl(fd, MSG_SLOT_CHANNEL, 20);
 	if (rc == -1) {
         fprintf(stderr, "read_no_message: ioctl failed with error: %d\n", errno);
 		return;
@@ -53,7 +53,7 @@ void write_read_null(int fd) {
 	int passed=1;
 	sleep(1);
 	char *null_bffr = NULL;
-	int rc = ioctl(fd, IOCTL_MSG_SLOT_CHNL, 10);
+	int rc = ioctl(fd, MSG_SLOT_CHANNEL, 10);
 	if (rc == -1) {
 	    passed=0;
         fprintf(stderr, "write_read_null: ioctl failed with error: %d\n", errno);
@@ -156,7 +156,7 @@ void write_read_before_ioctl(int fd) {
         passed=0;
         fprintf(stderr, "write_read_before_ioctl: read hasn't failed although he should have\n");
     }
-	rc = ioctl(fd, IOCTL_MSG_SLOT_CHNL, 10);
+	rc = ioctl(fd, MSG_SLOT_CHANNEL, 10);
 	if (rc == -1) {
         fprintf(stderr, "write_read_before_ioctl: ioctl failed with error: %d\n", errno);
         return;

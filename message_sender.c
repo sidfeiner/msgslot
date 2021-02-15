@@ -44,7 +44,7 @@ int main(int c, char **args) {
         clean(fd);
     }
 
-    if (ioctl(fd, IOCTL_MSG_SLOT_CHNL, (unsigned long) channelId) < 0) {
+    if (ioctl(fd, MSG_SLOT_CHANNEL, (unsigned long) channelId) < 0) {
         perror("ioctl failed");
         exitAndClean(fd);
     }
